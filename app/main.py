@@ -52,6 +52,7 @@ async def startup():
 
     print("environ = ", os.environ.get('WEBSITE_SITE_NAME', 'localhost'))
 
+
 @app.on_event("shutdown")
 async def shutdown():
     await app.state.db_pool.close()
