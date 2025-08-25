@@ -10,3 +10,6 @@ conda activate pyx
 
 # chatgpt link about WA voice notes to chat_gpt
 https://chatgpt.com/share/68a96826-b2b4-8011-8eac-4013e180e3db
+
+# deployment
+az webapp deploy --src-path ./mx-wa-webhook --type zip --resource-group Development --name MxWaWebHook
