@@ -1,6 +1,10 @@
+openai>=1.40.0
 fastapi
+asyncpg
 uvicorn[standard]
 SQLAlchemy
 psycopg2-binary
 jinja2
 gunicorn
+keyring
+httpx

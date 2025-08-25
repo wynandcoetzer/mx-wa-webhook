@@ -1,8 +1,8 @@
-import os, openai, json
+import openai
 from fastapi import FastAPI, Request, HTTPException, Depends, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
-import asyncpg
+import asyncpg, os
 from .packages import whatsapp, env, db, prompts, action as act
 import logging
 
@@ -34,6 +34,11 @@ def limitChatHistory(tel_str):
 # --- FASTAPI APP ---
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
+
+# ---------- Health Check -------
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
 
 # ---------- Startup & Shutdown ----------
 @app.on_event("startup")
