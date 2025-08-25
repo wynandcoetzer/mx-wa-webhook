@@ -4,6 +4,10 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 import asyncpg
 from .packages import whatsapp, env, db, prompts, action as act
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logging.info("App has started! 1")
 
 # --- GLOBAL STATE ---
 chat_history = {}
@@ -34,6 +38,9 @@ templates = Jinja2Templates(directory="app/templates")
 # ---------- Startup & Shutdown ----------
 @app.on_event("startup")
 async def startup():
+
+    logging.info("App has started! 2")
+    logging.info("environ = " + os.environ.get('WEBSITE_SITE_NAME', 'localhost'))
 
     env.initEnv()
     openai.api_key = env.OPEN_AI_KEY
