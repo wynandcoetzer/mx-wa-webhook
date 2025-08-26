@@ -1,0 +1,112 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ask & History</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start; /* align left */
+            margin: 0;
+            padding: 0.5rem;
+            box-sizing: border-box;
+            height: 650px; /* fit target height */
+        }
+        textarea, input {
+            display: block;
+            margin: 0.3rem 0;
+            font-size: 1rem; /* keep font size */
+            padding: 0.5rem;
+            box-sizing: border-box;
+        }
+        textarea {
+            resize: none;
+        }
+        #history {
+            height: 400px; /* reduced for 650px screen height */
+            width: 320px;  /* fits 350px screen width */
+        }
+        #ask {
+            height: 80px; /* smaller for compact fit */
+            width: 320px;
+        }
+        .top-bar {
+            width: 320px;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.3rem;
+        }
+        button {
+            display: none; /* Hide buttons */
+        }
+        input[type="tel"] {
+            flex: 1;
+            width: 320px; /* match width for consistency */
+        }
+    </style>
+</head>
+<body>
+    <!-- Top bar with telephone input -->
+    <div class="top-bar">
+        <input type="tel" id="telephone" placeholder="Telephone number">
+    </div>
+
+    <!-- History section -->
+    <textarea id="history" placeholder="History" readonly></textarea>
+
+    <!-- Ask section -->
+    <textarea id="ask" placeholder="Ask"></textarea>
+
+    <script>
+        const historyEl = document.getElementById('history');
+        const askEl = document.getElementById('ask');
+        const telEl = document.getElementById('telephone');
+
+        async function sendAsk() {
+            const askText = askEl.value.trim();
+            const telText = telEl.value.trim();
+
+            if (!telText) {
+                alert('Telephone number must be entered.');
+                return;
+            }
+
+            if (!askText) return;
+
+            const res = await fetch('/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ Ask: askText, Telephone: telText })
+            });
+            const data = await res.json();
+            historyEl.value = data.History;
+            askEl.value = '';
+        }
+
+        async function clearHistory() {
+            const res = await fetch('/clear', { method: 'POST' });
+            const data = await res.json();
+            historyEl.value = data.History;
+        }
+
+        async function resetHistory() {
+            const res = await fetch('/reset', { method: 'POST' });
+            const data = await res.json();
+            historyEl.value = data.History;
+        }
+
+        // Allow Enter to submit from Ask textarea
+        askEl.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendAsk();
+            }
+        });
+    </script>
+</body>
+</html>
