@@ -267,6 +267,7 @@ async def getBestPrice(crop_str, params):
 
 def extractMemory(params, arguments):
     #print("\nextractMemory params =", params, ", arguments =", arguments)
+    db.step          = 183
     memories         = []
     for key, val in params.items():
         if key[-2:] == 'Id':
@@ -279,7 +280,9 @@ def extractMemory(params, arguments):
             val      = arguments.get(name, None)
             if val:
                 memories    += [f'{name} = {val}']
+    db.step          = 184
     memory           = 'MEMORY: ' + ', '.join(memories) if memories else None
+    db.step          = 185
     return memory    
 
 # ----- parse chatGpt responses and enter info into DB --------------
@@ -294,6 +297,7 @@ async def insertMeatPreOffer(params):
     return True
 
 async def insertCropPreOffer(params):
+    db.step        = 181
     qInsertCropPreOffer  = """
         INSERT INTO exchange."CropPreOrder"("CropId", "OrderType", "Quantity", "Price", 
                                             "CurrencyId", "BulkEntityId", "CreatorId", "DeliveryPointId")
@@ -301,6 +305,7 @@ async def insertCropPreOffer(params):
             (@cropId, 'S', @quantity, @price, 1, @entityId, @userId, @townId)
         """
     ret              = await _pg.execute(qInsertCropPreOffer, params)
+    db.step       = 182
     print("insertCropPreOffer params =", params, ", ret =", ret)
     return True
 
@@ -320,14 +325,18 @@ async def parseAsk(user, tool_obj):
         town_str         = arguments['town']
         age_str          = arguments.get('age', "")
         chat_act         = json.dumps({'crop': crop_str, 'town': town_str, 'age': age_str})
-        db.step             = 120
+        db.step          = 120
         params, retry_str  = await parseCropTownAge(user, crop_str, town_str, age_str)
-        db.step             = 121
+        db.step          = 121
         memory           = extractMemory(params, arguments)
+        db.step          = 128
         if retry_str:
+            db.step     = 127
             return {'reply': '', 'retry': retry_str, 'chat': chat_act, 'memory': memory, 'func': None}
 
+        db.step          = 129
         price            = await getBestPrice(crop_str, params)
+        print("parseAk price =", price)
         if not price:
             reply        = f"I am sorry but we don't have an active bid for your {age_str + ' ' + crop_str} offer in the system. " + \
                             " Despite that, you are welcome to enter an offer into our system. " + \

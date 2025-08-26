@@ -13,7 +13,10 @@ def initEnv():
     WHATSAPP_VERIFY_TOKEN   = os.environ.get('WHATSAPP_VERIFY_TOKEN')
     WHATSAPP_ACCESS_TOKEN   = os.environ.get('WHATSAPP_ACCESS_TOKEN')
     WHATSAPP_PHONE_ID       = os.environ.get('WHATSAPP_PHONE_ID')
-    print("WHATSAPP_PHONE_ID =", WHATSAPP_PHONE_ID)
+    print(f"WHATSAPP_PHONE_ID = [{WHATSAPP_PHONE_ID}]")
+    print(f"WHATSAPP_ACCESS_TOKEN = [{WHATSAPP_ACCESS_TOKEN}]")
+    print(f"WHATSAPP_VERIFY_TOKEN = [{WHATSAPP_VERIFY_TOKEN}]")
+
 
 obsolete = """
     def initEnv():
@@ -28,7 +31,7 @@ server               = 'mxdev'
 username             = server + 'py'
 
 def databaseUrl():
-    servename    = 'mxdev'                     #os.environ.get('DB_SERVER')                              
+    servename    = os.environ.get('DB_SERVER')                              
     username     = servename + 'py'
     password     = os.environ.get('ALARM')
     #userpw       = f'{username}@{server}                                   #keyring.get_password(f'{username}@{server}', "MatchMX")

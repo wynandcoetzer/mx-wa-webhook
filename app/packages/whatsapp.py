@@ -9,10 +9,13 @@ async def respond_to_client(ai_response: str, wa_id: str):
         "text": {"body": ai_response},
     }
     url = f"https://graph.facebook.com/v22.0/{env.WHATSAPP_PHONE_ID}/messages"
+    #print("\nWA URL =", url)
     headers = {
         "Authorization": f"Bearer {env.WHATSAPP_ACCESS_TOKEN}",
         "Content-Type": "application/json",        
     }
+    #print("\nheaders =", headers)
+    #print("\npayload =", payload)
 
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=payload)

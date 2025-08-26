@@ -108,24 +108,33 @@ async def agentResponse(ask_text, tel_str):
             assistant_msg = await chat_gpt(tel_str)
             chat_history[tel_str].append(assistant_msg)
 
-            if hasattr(assistant_msg, "tool_calls"):
+            if  hasattr(assistant_msg, "tool_calls") and assistant_msg.tool_calls:
                 db.step = 7
                 if tel_str in input_maps:
                     input_maps.pop(tel_str)
 
+                db.step = 51
                 user = await db.getUser(tel_str)
+                db.step = 54
+                print("assistant_msg 54 =", assistant_msg)
                 tool_obj = assistant_msg.tool_calls[0].function
+                db.step = 55
                 result = await act.parseAsk(user, tool_obj)
+                db.step = 56
 
+                db.step = 52
                 if result.get('func') == 'clear_before':
                     resetChatHistory(tel_str)
 
+                db.step = 53
                 if result.get('chat'):
-                    chat_history[tel_str].append({
-                        "role": "tool",
-                        "tool_call_id": assistant_msg.tool_calls[0].id,
-                        "content": result['chat']
-                    })
+                    print("\nassistant_msg get chat =", assistant_msg)
+                    if assistant_msg.tool_calls:
+                        chat_history[tel_str].append({
+                            "role": "tool",
+                            "tool_call_id": assistant_msg.tool_calls[0].id,
+                            "content": result.get('chat', '')
+                        })
 
                 if result.get('memory'):
                     chat_history[tel_str].append({"role": "system", "content": result['memory']})
@@ -135,6 +144,8 @@ async def agentResponse(ask_text, tel_str):
                     assistant_msg = await chat_gpt(tel_str)
                     if hasattr(assistant_msg, "tool_calls"):
                         chat_history[tel_str].append(assistant_msg)
+                        print("assistant_msg strange =", assistant_msg)
+                        reply  = str(assistant_msg.content.strip())
                     else:
                         reply = str(assistant_msg.content.strip())
                 else:
@@ -181,8 +192,10 @@ async def handle_webhook(request: Request):
     body = await request.json()
     result = whatsapp.parse_incoming_message(body)
     if result:
-        ask_text, tel_str = result
+        tel_str, ask_text = result
+        #print("parse WA result =", result)
         reply, _success = await agentResponse(ask_text, tel_str)
+        #print("respond_to_client =", reply, tel_str)
         await whatsapp.respond_to_client(reply, tel_str)
 
 @app.post("/ask")
