@@ -1,6 +1,6 @@
 from openai import AsyncOpenAI
-from fastapi import FastAPI, Request, HTTPException, Depends, Query
-from fastapi.responses import HTMLResponse, PlainTextResponse, FileResponse
+from fastapi import FastAPI, Request, HTTPException, Query
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 import asyncpg, os, logging
 from pathlib import Path
@@ -13,7 +13,7 @@ logging.info("App has started! 1")
 chat_history = {}
 input_maps   = {}
 
-# --- show paths ---
+# --- paths & jinja (create ONCE) ---
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 
@@ -22,17 +22,17 @@ logging.info("BASE_DIR: %s", BASE_DIR)
 logging.info("TEMPLATES_DIR: %s (exists=%s)", TEMPLATES_DIR, TEMPLATES_DIR.exists())
 logging.info("INDEX_HTML: %s (exists=%s)", TEMPLATES_DIR / "index.html", (TEMPLATES_DIR / "index.html").exists())
 
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
-logging.info("Jinja loader searchpath: %s", getattr(templates.env.loader, "searchpath", "N/A"))
+_templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+logging.info("Jinja loader searchpath: %s", getattr(_templates.env.loader, "searchpath", "N/A"))
 try:
-    _ = templates.env.get_template("index.html")
+    _ = _templates.env.get_template("index.html")
     logging.info("Jinja can load index.html at startup ✅")
 except Exception:
     logging.exception("Jinja failed to load index.html at startup ❌")
 
 # --- FASTAPI APP ---
 app = FastAPI()
-app.state.templates = templates   # <- single source of truth for templates
+app.state.templates = _templates   # single source of truth
 
 # ---------- Health Check -------
 @app.get("/healthz")
@@ -48,18 +48,15 @@ async def startup():
     env.initEnv()
     print("env.OPEN_AI_KEY =", env.OPEN_AI_KEY)
 
-    # Create pool once for the app
     app.state.db_pool = await asyncpg.create_pool(
         env.databaseUrl(),
         min_size=1,
         max_size=10,
-        command_timeout=60
+        command_timeout=60,
     )
     app.state.pg = db.pgDB(app.state.db_pool)
     db.init_global(app.state.pg)
     act.init_global(app.state.pg, input_maps)
-
-    print("environ = ", os.environ.get('WEBSITE_SITE_NAME', 'localhost'))
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -81,7 +78,7 @@ async def chat_gpt(tel_str):
     except Exception as e:
         return f"chat_gpt error: {e}"
 
-# ----------- handle chat ----------
+# ---- chat helpers ----
 def resetChatHistory(tel_str):
     prompt = prompts.prompts['initial']['prompt']
     chat_history[tel_str] = [{'role': 'system', 'content': prompt}]
@@ -124,20 +121,17 @@ async def agentResponse(ask_text, tel_str):
                     resetChatHistory(tel_str)
 
                 if result.get('chat'):
-                    tool_rec = {
+                    chat_history[tel_str].append({
                         "role": "tool",
                         "tool_call_id": assistant_msg.tool_calls[0].id,
                         "content": result['chat']
-                    }
-                    chat_history[tel_str].append(tool_rec)
+                    })
 
                 if result.get('memory'):
-                    mem_rec = {"role": "system", "content": result['memory']}
-                    chat_history[tel_str].append(mem_rec)
+                    chat_history[tel_str].append({"role": "system", "content": result['memory']})
 
                 if result.get('retry'):
-                    retry_rec = {"role": "system", "content": result['retry']}
-                    chat_history[tel_str].append(retry_rec)
+                    chat_history[tel_str].append({"role": "system", "content": result['retry']})
                     assistant_msg = await chat_gpt(tel_str)
                     if hasattr(assistant_msg, "tool_calls"):
                         chat_history[tel_str].append(assistant_msg)
@@ -159,14 +153,17 @@ async def agentResponse(ask_text, tel_str):
 
     except Exception as e:
         resetChatHistory(tel_str)
-        reply = "I am really sorry, but I have a sudden memory lapse. Could you please start from the beginning?"
         err_str = f"\n\n ----------->\n Ask error, step = {db.step}: {e}"
         print(err_str)
+        reply = "I am really sorry, but I have a sudden memory lapse. Could you please start from the beginning?"
         return err_str, False
 
 # ----------- Routes ---------------
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
+    # log the active searchpath so you can verify at request time
+    sp = getattr(request.app.state.templates.env.loader, "searchpath", None)
+    logging.info("TEMPLATES id=%s searchpath=%s", id(request.app.state.templates), sp)
     return request.app.state.templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/webhook", response_class=PlainTextResponse)
@@ -185,7 +182,7 @@ async def handle_webhook(request: Request):
     result = whatsapp.parse_incoming_message(body)
     if result:
         ask_text, tel_str = result
-        reply, success = await agentResponse(ask_text, tel_str)
+        reply, _success = await agentResponse(ask_text, tel_str)
         await whatsapp.respond_to_client(reply, tel_str)
 
 @app.post("/ask")
@@ -194,7 +191,7 @@ async def ask(request: Request):
     body = await request.json()
     ask_text = body.get("Ask", "").strip()
     tel_str  = str(body.get("Telephone", "").strip())
-    reply, success = await agentResponse(ask_text, tel_str)
+    reply, _success = await agentResponse(ask_text, tel_str)
     return {"History": ask_text + '\n\n' + str(reply)}
 
 @app.post("/clear")
